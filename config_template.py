@@ -2,13 +2,13 @@
 
 # OpenAI key - you need a paid account (at least $5) to get one of these. $5 gets you about 1000 summaries; they're very cheap.
 # To make this key, go to https://platform.openai.com/settings/organization/api-keys
-#OPENAI_API_KEY="sk-FILL_THIS_IN"
+#OPENAI_API_KEY = "sk-FILL_THIS_IN"
 
 
 
 # Discord webhook URL to post updates
 # Discord > Edit Channel > Integrations > Webhooks > New Webhook
-#WEBHOOK_URL=""
+#WEBHOOK_URLS = []
 
 
 

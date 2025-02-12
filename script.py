@@ -70,10 +70,6 @@ def broadcast_new_eo(eo: ExecutiveOrder):
         summary = None
 
     # use webhook to do thing
-    webhook_url = config.WEBHOOK_URL
-    if not webhook_url:
-        raise Exception('WEBHOOK_URL config variable not set; cannot broadcast new EO')
-
     obj = {}
     obj['content'] = None
     embed = {}
@@ -96,13 +92,13 @@ def broadcast_new_eo(eo: ExecutiveOrder):
     obj['embeds'] = [embed]
     obj['attachments'] = []
 
-    # try to send webhook
-    r = requests.post(webhook_url, data=json.dumps(obj), headers={'Content-Type': 'application/json'})
-    if r.status_code == 204:
-        print('discord noti sent successfully')
-    else:
-        print(repr(obj))
-        raise Exception(f'Failed to send message. Status code: {r.status_code}')
+    for webhook_url in config.WEBHOOK_URLS:
+        # try to send webhook
+        r = requests.post(webhook_url, data=json.dumps(obj), headers={'Content-Type': 'application/json'})
+        if r.status_code == 204:
+            print(f'discord noti sent successfully to {webhook_url}')
+        else:
+            print(f'Failed to send message. Status code: {r.status_code}')
 
 def summarize_with_openai(text: str) -> str:
     client = openai.OpenAI(
