@@ -4,12 +4,15 @@ import time
 from datetime import datetime
 from dataclasses import dataclass
 from typing import Optional
-import dotenv
 import openai
 import json
 import markdownify
 
-dotenv.load_dotenv()
+try:
+    import config
+except ImportError:
+    raise Exception('You must copy config_template.py to config.py and then fill it in before running this.')
+
 
 POLL_TIME = 5 * 60
 
@@ -67,9 +70,9 @@ def broadcast_new_eo(eo: ExecutiveOrder):
         summary = None
 
     # use webhook to do thing
-    webhook_url = os.environ.get('WEBHOOK_URL', None)
+    webhook_url = config.WEBHOOK_URL
     if not webhook_url:
-        raise Exception('WEBHOOK_URL environment variable not set; cannot broadcast new EO')
+        raise Exception('WEBHOOK_URL config variable not set; cannot broadcast new EO')
 
     obj = {}
     obj['content'] = None
@@ -102,13 +105,15 @@ def broadcast_new_eo(eo: ExecutiveOrder):
         raise Exception(f'Failed to send message. Status code: {r.status_code}')
 
 def summarize_with_openai(text: str) -> str:
-    client = openai.OpenAI()
+    client = openai.OpenAI(
+        api_key=config.OPENAI_API_KEY
+    )
 
     completion = client.chat.completions.create(
         model='gpt-4o-mini',
         messages=[
             {'role': 'developer', 'content': 'You are a helpful assistant.'},
-            {'role': 'user', 'content': f'please summarize the content of this executive order in under 4000 characters. Keep in mind that you are speaking to a Federal government employee. \n\n{text}'},
+            {'role': 'user', 'content': f'{config.PREAMBLE} \n\n{text}'},
         ],
     )
 
