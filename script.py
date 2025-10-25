@@ -252,7 +252,7 @@ if __name__ == '__main__':
 
     eo_cache = load_cache_from_disk()
 
-    first_run = False
+    first_run = True
     while True:
         for eo in get_current_eos():
             if eo.url in eo_cache:
