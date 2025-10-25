@@ -142,7 +142,7 @@ class ExecutiveOrder:
             data = f.read()
         return ExecutiveOrder.from_json(data)
 
-    def get_hook_data(self) -> tuple[dict, dict[str, typing.Any]]:
+    def get_hook_data(self) -> tuple[dict, dict[str, bytes]]:
         if self.text is None and self.summary is None:
             raise Exception(f'text and summary are None for {self.title}')
         embed = {
@@ -170,8 +170,9 @@ class ExecutiveOrder:
         }
 
         # include the text as an attachment
+        # currently disabled because it makes the result look ugly :(
         files = {
-            'text.md': io.StringIO(self.text)
+            #'original.md': self.text.encode('utf-8')
         }
         return obj, files
 
@@ -185,13 +186,16 @@ class ExecutiveOrder:
                 if user_confirm.lower() != 'y':
                     logger.info(f'Skipping webhook {hook} per user request')
                     continue
+            
+            r = requests.post(
+                hook,
+                files={
+                    'payload_json': (None, json.dumps(obj), 'application/json'),
+                    **{fname: fobj for fname, fobj in files.items()}
+                }
+            )
 
-            multipart_data = obj.copy()
-            #assert len(files) <= 1, "Currently only supports one file attachment"
-            #for (fname, fobj) in files.items():
-            #    multipart_data['files[0]'] = (fname, fobj)
-            r = requests.post(hook, data=json.dumps(multipart_data), headers={'Content-Type': 'application/json'})
-            if r.status_code == 204:
+            if r.status_code in (200, 204):
                 logger.debug(f'Discord notification successfully sent to {hook}')
             else:
                 logger.error(f'Failed to send notification to {hook}. Status code: {r.status_code}')
