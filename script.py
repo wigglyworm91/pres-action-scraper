@@ -145,11 +145,7 @@ class ExecutiveOrder:
     def get_hook_data(self) -> tuple[dict, dict[str, typing.Any]]:
         if self.text is None and self.summary is None:
             raise Exception(f'text and summary are None for {self.title}')
-        obj = {
-            'content': None,
-            'embed': {
-                # filled in later
-            },
+        embed = {
             'fields': [
                 {
                     'name': 'Link',
@@ -159,18 +155,19 @@ class ExecutiveOrder:
                     'name': 'Publish Date',
                     'value': self.date.strftime('%A, %B %-d, %Y'),
                 }
-            ],
+            ]
         }
         if self.summary:
-            obj['embed'] = {
-                'title': f'{eo.title} (SUMMARY)',
-                'description': self.summary[:4000],
-            }
+            embed['title'] = f'{self.title} (SUMMARY)'
+            embed['description'] = self.summary[:4000]
         else:
-            obj['embed'] = {
-                'title': f'{eo.title}',
-                'description': self.text[:3997] + '...',
-            }
+            embed['title'] = f'{self.title}'
+            embed['description'] = self.text[:3997] + '...'
+
+        obj = {
+            'content': None,
+            'embeds': [embed],
+        }
 
         # include the text as an attachment
         files = {
@@ -188,7 +185,12 @@ class ExecutiveOrder:
                 if user_confirm.lower() != 'y':
                     logger.info(f'Skipping webhook {hook} per user request')
                     continue
-            r = requests.post(hook, data={'payload_json': json.dumps(obj)}, files=files)
+
+            multipart_data = obj.copy()
+            #assert len(files) <= 1, "Currently only supports one file attachment"
+            #for (fname, fobj) in files.items():
+            #    multipart_data['files[0]'] = (fname, fobj)
+            r = requests.post(hook, data=json.dumps(multipart_data), headers={'Content-Type': 'application/json'})
             if r.status_code == 204:
                 logger.debug(f'Discord notification successfully sent to {hook}')
             else:
@@ -241,6 +243,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process executive orders')
     parser.add_argument('--once', action='store_true', help='Run once and exit, instead of polling continuously')
     parser.add_argument('--confirm', action='store_true', help='Ask for confirmation before broadcasting new executive orders')
+    parser.add_argument('--ignore-cache', action='store_true', help='Ignore the local cache and treat all found executive orders as new')
     args = parser.parse_args()
 
     eo_cache = load_cache_from_disk()
@@ -249,12 +252,16 @@ if __name__ == '__main__':
     while True:
         for eo in get_current_eos():
             if eo.url in eo_cache:
-                # we've already seen this one
-                logger.info(f'Skipping {eo.title} at {eo.url} - already seen')
-                continue
-            eo_cache[eo.url] = eo
+                if args.ignore_cache:
+                    logger.info(f'Ignoring cache; treating {eo.title} at {eo.url} as new')
+                else:
+                    # we've already seen this one
+                    logger.info(f'Skipping {eo.title} at {eo.url} - already seen')
+                    continue
+            else:
+                eo_cache[eo.url] = eo
 
-            # this is a new EO
+            # this is a new EO (or we're ignoring the cache)
             logger.info(f'Found new EO: {eo.title}\n\t{eo.url}\n\t{eo.date}')
             try:
                 eo.load_text()
